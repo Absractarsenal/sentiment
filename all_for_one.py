@@ -24,10 +24,11 @@ from nltk.corpus import stopwords
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Download NLTK stopwords if not present
-try:
-    nltk.data.find('corpora/stopwords')
-except nltk.downloader.DownloadError:
-    nltk.download("stopwords")
+# try:
+#     nltk.data.find('corpora/stopwords')
+# except nltk.downloader.DownloadError:
+#     nltk.download("stopwords")
+nltk.download("stopwords")
 
 # --- Configuration ---
 MODEL_NAME = 'ProsusAI/finbert'
@@ -119,7 +120,7 @@ class HybridSentimentPredictor:
     def __init__(self, finbert_path, svm_path, tfidf_path):
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         self.finbert_model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=len(label_map))
-        self.finbert_model.load_state_dict(torch.load(finbert_path, map_location=device))
+        self.finbert_model.load_state_dict(torch.load(finbert_path, map_location=device, weights_only=False))
         self.finbert_model.to(device)
         self.finbert_model.eval()
         self.svm_model = joblib.load(svm_path)
@@ -192,18 +193,21 @@ async def lifespan(app: FastAPI):
     global predictor, t5_tokenizer, t5_model, db_conn
     print("Loading models and setting up database...")
     try:
-        # Load sentiment models
+        # Define model paths based on the current directory
         finbert_path = "FINBERT_FINAL.BIN"
         svm_path = "SVM_FINAL.PKL"
         tfidf_path = "TFIDF_VECTORIZER_FINAL.PKL"
 
         # Load sentiment models
+        # Note: You may need to add weights_only=False if your PyTorch version is > 2.6
         predictor = HybridSentimentPredictor(finbert_path, svm_path, tfidf_path)
+        
         # Load summarization models
         t5_model_name = "t5-base"
         t5_tokenizer = T5Tokenizer.from_pretrained(t5_model_name)
         t5_model = T5ForConditionalGeneration.from_pretrained(t5_model_name)
         t5_model.to(device)
+        
         # Setup database
         db_conn = sqlite3.connect(DATABASE_FILE)
         cursor = db_conn.cursor()
@@ -222,7 +226,8 @@ async def lifespan(app: FastAPI):
         sys.exit(1)
     yield
     print("Shutting down...")
-    if db_conn: db_conn.close()
+    if db_conn:
+        db_conn.close()
 
 app = FastAPI(lifespan=lifespan)
 
