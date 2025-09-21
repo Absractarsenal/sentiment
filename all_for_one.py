@@ -19,15 +19,14 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import nltk
 from nltk.corpus import stopwords
+import os
 
 # --- Initial Setup ---
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-# Download NLTK stopwords if not present
-# try:
-#     nltk.data.find('corpora/stopwords')
-# except nltk.downloader.DownloadError:
-#     nltk.download("stopwords")
+# Download NLTK stopwords is now handled by the build.sh script
+# So we just run the download command here.
+# This will succeed instantly as the data is already present.
 nltk.download("stopwords")
 
 # --- Configuration ---
@@ -47,7 +46,7 @@ t5_tokenizer = None
 t5_model = None
 db_conn = None
 
-# --- Text Cleaning from text_processing.py ---
+# --- Text Cleaning Function ---
 contractions_dict = {
     "ain't": "am not", "aint": "am not", "aren't": "are not", "can't": "cannot",
     "'cause": "because", "could've": "could have", "couldn't": "could not",
@@ -180,7 +179,6 @@ def summarize_text(text, tokenizer, model):
         )
         return f"Positive Aspects: {pos_summary}\n\nConcerns: {neg_summary}"
     else:
-        print("Structured sections not found. Generating a single summary.")
         return generate_summary_for_chunk(
             text,
             min_length=max(10, len(text.split()) // 10),
@@ -193,13 +191,11 @@ async def lifespan(app: FastAPI):
     global predictor, t5_tokenizer, t5_model, db_conn
     print("Loading models and setting up database...")
     try:
-        # Define model paths based on the current directory
+        # Load sentiment models directly from the current directory
         finbert_path = "FINBERT_FINAL.BIN"
         svm_path = "SVM_FINAL.PKL"
         tfidf_path = "TFIDF_VECTORIZER_FINAL.PKL"
 
-        # Load sentiment models
-        # Note: You may need to add weights_only=False if your PyTorch version is > 2.6
         predictor = HybridSentimentPredictor(finbert_path, svm_path, tfidf_path)
         
         # Load summarization models
@@ -245,7 +241,7 @@ async def process_texts(texts: List[str]) -> List[SentimentResult]:
         result = SentimentResult(text=text, sentiment=sentiment.upper(), summary=summary)
         results.append(result)
         cursor.execute("INSERT INTO results (text, sentiment, summary) VALUES (?, ?, ?)",
-                       (result.text, result.sentiment, result.summary))
+                         (result.text, result.sentiment, result.summary))
         print(f"{i + 1} done")
     db_conn.commit()
     return results
@@ -294,7 +290,7 @@ async def generate_wordcloud(file: Optional[UploadFile] = File(None), text_data:
     cleaned_text = " ".join([clean_text(text) for text in texts_to_process])
     if not cleaned_text:
         raise HTTPException(status_code=422, detail="No processable words found after cleaning.")
-        
+    
     wordcloud = WordCloud(width=800, height=400, background_color="white").generate(cleaned_text)
     
     buf = BytesIO()
