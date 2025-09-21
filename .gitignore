@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Models and data - Do not commit these large files to Git
+models/
+*.bin
+*.pkl
+*.db
+
+# Virtual environment
+.env
+.venv
+env/
+venv/
+
+# IDE files
+.vscode/
+.idea/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Any other specific file you want to ignore
+# For example, if you have a file named 'secrets.py'
+# secrets.py
